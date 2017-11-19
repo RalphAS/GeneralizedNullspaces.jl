@@ -23,10 +23,10 @@ responsible for providing a tolerance determining how closely nullity
 is enforced.  (A default is provided, with reluctance.) See the
 reference for guidance.
 
-Note: although the code passes basic tests, more exhaustive checks against
-stressing (ill-conditioned) inputs are desirable but not yet included. The
-code is fairly generic, but has only been tested on standard real and complex
-matrices.
+Note: although the code passes basic tests, more exhaustive checks
+against stressing (ill-conditioned) inputs are desirable but not yet
+included. The code is fairly generic, but testing on anything other than
+`Float64` (real and complex) matrices has been perfunctory.
 
 Reference:
 

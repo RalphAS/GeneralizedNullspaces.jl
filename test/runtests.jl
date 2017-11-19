@@ -1,7 +1,10 @@
 using GeneralizedNullspaces
+using GenericSVD
 using Base.Test
 
 include("testutils.jl")
+
+quiet = true
 
 # example from appendix B of the Guglielmi et al. paper
 let tol=1e-10
@@ -46,7 +49,7 @@ let tol=1e-9
     @test gnsdcheck(A,B,V,ν,μ)
 end
 
-let tol=1e-9, quiet=false
+let tol=1e-9
     ν = 2
     μx = [3,2,1]
     AA = makegnb(ν,μx)
@@ -61,7 +64,7 @@ let tol=1e-9, quiet=false
 end
 
 for TT in (Float64,Complex{Float64})
-    let tol=1e-9, quiet=false
+    let tol=1e-9
         ν=2
         μx = [3,2,1]
         AA = makegnb(ν,μx)
@@ -76,7 +79,7 @@ for TT in (Float64,Complex{Float64})
     end
 end
 
-let tol=1e-9, quiet=false
+let tol=1e-9
     ν=2
     μx=[3,2,1]
     AA = makegnb(ν,μx;cplx=true)
@@ -88,4 +91,18 @@ let tol=1e-9, quiet=false
     quiet || println("ν=$ν1 μ=$μ")
     @test ν == ν1
     @test gnsdcheck(A,B,V,ν1,μ; quiet=quiet)
+end
+
+let tol=1e-9
+    ν=1
+    μx = [3,2]
+    AA = makegnb(1,μx)
+    n = size(AA,1)
+    Q,R = qr(randn(n,n))
+    A = Q' * AA * Q
+    Ab = Matrix{BigFloat}(A)
+    B,V,ν1,μ = gnsd(Ab,tol)
+    @test ν == 1
+    @test μ == μx[1:ν]
+    @test gnsdcheck(A,B,V,ν,μ)
 end
