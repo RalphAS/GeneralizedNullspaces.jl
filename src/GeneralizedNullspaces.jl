@@ -246,7 +246,7 @@ end
 
 compute the generalized nullspace decomposition of a matrix `A`
 
-Computes block upper triangular `B` and unitary `V` s.t. `A = V * B * V`.
+Computes block upper triangular `B` and unitary `V` s.t. `A = V * B * V'`.
 Returns the index of `A` in `ν` and the diagonal block orders in `μ`.
 See [`GNSD`](@ref) for the structure of `B`.
 """
