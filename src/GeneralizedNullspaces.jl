@@ -5,6 +5,8 @@ module GeneralizedNullspaces
 
 export gnsd, gnsdfact, gnsdfact!, GNSD
 
+using LinearAlgebra
+
 include("QRDowndate.jl")
 using .QRDowndate
 
@@ -53,7 +55,7 @@ Uses the QR/update algorithm from [^Guglielmi2015].
 "An efficient algorithm for computing the generalized null space decomposition",
 SIAM J. Matrix Anal. Appl. 36 (1), 38-54 (2015).
 """
-gnsdfact{T}(A::Matrix{T},tol=sqrt(eps(T))) = gnsdfact!(copy(A),tol)
+gnsdfact(A::Matrix{T},tol=sqrt(eps(T))) where T = gnsdfact!(copy(A),tol)
 
 """
     gnsdfact!(A) -> F::GNSD
@@ -61,15 +63,15 @@ gnsdfact{T}(A::Matrix{T},tol=sqrt(eps(T))) = gnsdfact!(copy(A),tol)
 `gnsdfact!` is the same as [`gnsdfact`](@ref), but saves space by
 overwriting the input `A` instead of creating a copy.
 """
-function gnsdfact!{T}(B::Matrix{T},tol=sqrt(eps(T)))
+function gnsdfact!(B::Matrix{T},tol=sqrt(eps(T))) where T
     verbosity = pverbosity[]
     m,n = size(B)
-    F = qrfact(B)
-    Q = full(F[:Q],thin=true)
-    R = F[:R]
-    μ = Vector{Int}(0)
+    F = qr(B)
+    Q = Matrix(F.Q)
+    R = F.R
+    μ = Vector{Int}(undef,0) # sigh.
     # we will multiply rotations into V
-    V = eye(B)
+    V = Matrix{T}(I,size(B))
 
     k = 1 # block number
     idxk = 1 # starting index of block k
@@ -108,23 +110,23 @@ function gnsdfact!{T}(B::Matrix{T},tol=sqrt(eps(T)))
                 x[i-1] = r
                 x[i] = 0
                 if useviews[]
-                    A_mul_Bc!(view(R,1:i,:),Vi) # slow
+                    rmul!(view(R,1:i,:),adjoint(Vi)) # slow
                 else
-                    R[1:i,:] = A_mul_Bc!(R[1:i,:],Vi)
+                    R[1:i,:] .= rmul!(R[1:i,:],adjoint(Vi)) # allocates
                 end
-                A_mul_Bc!(V,Vi)
-                A_mul_Bc!(B,Vi)
-                A_mul_B!(Vi,B)
-                A_mul_B!(Vi,Q)
+                rmul!(V,adjoint(Vi))
+                rmul!(B,adjoint(Vi))
+                lmul!(Vi,B)
+                lmul!(Vi,Q)
                 Ui,r = givens(R[i-1,i-1],R[i,i-1],i-1,i)
                 R[i-1,i-1] = r
                 R[i,i-1] = 0
                 if useviews[]
-                    A_mul_B!(Ui,view(R,:,i:n)) # slow
+                    lmul!(Ui,view(R,:,i:n)) # slow
                 else
-                    R[:,i:n] = A_mul_B!(Ui,R[:,i:n])
+                    R[:,i:n] = lmul!(Ui,R[:,i:n]) # allocates
                 end
-                A_mul_Bc!(view(Q,idxk:n,:),Ui)
+                rmul!(view(Q,idxk:n,:),adjoint(Ui))
 
             end
             # Find unitary W s.t. Rtilde = W' * Rhat is Up.Tri.,
@@ -135,11 +137,11 @@ function gnsdfact!{T}(B::Matrix{T},tol=sqrt(eps(T)))
                 R[i,i] = r
                 R[j,i] = 0
                 if useviews[]
-                    A_mul_B!(W,view(R,:,i+1:n)) # slow
+                    lmul!(W,view(R,:,i+1:n)) # slow
                 else
-                    R[:,i+1:n] = A_mul_B!(W,R[:,i+1:n]) # slow
+                    R[:,i+1:n] = lmul!(W,R[:,i+1:n]) # slow
                 end
-                A_mul_Bc!(view(Q,idxk:n,:),W)
+                rmul!(view(Q,idxk:n,:),adjoint(W))
             end
         end
 
@@ -173,7 +175,7 @@ function gnsdfact!{T}(B::Matrix{T},tol=sqrt(eps(T)))
     # Actually null out the (sub)diagonal blocks
     i=1 # first index of current block
     for j in eachindex(μ)
-        B[i:n, i:i+μ[j]-1] = 0
+        B[i:n, i:i+μ[j]-1] .= 0
         i += μ[j]
     end
     GNSD(B,V,μ)
@@ -181,8 +183,8 @@ end
 
 # Compute an approximate null vector for upper triangular matrix R.
 # For now, we allow R to be a view.
-function nullvector{T}(R::AbstractMatrix{T}, tol=zero(real(T)))
-    all(x->isa(x, Base.OneTo), indices(R)) ||
+function nullvector(R::AbstractMatrix{T}, tol=zero(real(T))) where T
+    all(x->isa(x, Base.OneTo), axes(R)) ||
         throw(ArgumentError("only implemented for 1-based indexing"))
     n = size(R,1)
     x = zeros(T,n)
@@ -194,7 +196,7 @@ function nullvector{T}(R::AbstractMatrix{T}, tol=zero(real(T)))
     # should have been met earlier, the backsolve is unstable.
     # Consider using a better default or rescaling.
     idxsmall = findfirst(x -> (abs(x) <= tol), diag(R))
-    if idxsmall > 0
+    if (idxsmall != nothing) && (idxsmall > 0)
         b = zeros(T,idxsmall); b[end] = 1
         x[idxsmall] = 1
         @inbounds for i in idxsmall-1:-1:1
@@ -207,7 +209,7 @@ function nullvector{T}(R::AbstractMatrix{T}, tol=zero(real(T)))
             end
         end
         xnrm = norm(x)
-        scale!(x,1/xnrm)
+        rmul!(x,1/xnrm)
         rxnorm = norm(R*x)
     else
         # Case 2:
@@ -236,7 +238,7 @@ function nullvector{T}(R::AbstractMatrix{T}, tol=zero(real(T)))
         # We often need a test for nullity later, viz. ‖R x‖;
         # return it from here to avoid an extra MxV.
         rxnorm = 1/norm(x)
-        scale!(x,rxnorm)
+        rmul!(x,rxnorm)
     end
     x,rxnorm
 end
@@ -250,7 +252,7 @@ Computes block upper triangular `B` and unitary `V` s.t. `A = V * B * V'`.
 Returns the index of `A` in `ν` and the diagonal block orders in `μ`.
 See [`GNSD`](@ref) for the structure of `B`.
 """
-function gnsd{T}(A::Matrix{T},tol=sqrt(eps(T)))
+function gnsd(A::Matrix{T},tol=sqrt(eps(T))) where T
     F = gnsdfact(A,tol)
     ν = length(F.μ)
     F.B, F.V, ν, F.μ

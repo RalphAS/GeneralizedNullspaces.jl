@@ -4,13 +4,14 @@ module QRDowndate
 # License-Filename: LICENSE.md
 
 export qrdowndate, qrdowndate!
+using LinearAlgebra
 
 # classical Gramm-Schmidt
 function gs_step(U,::Type{Val{:CGS}},v)
     g = U' * v
     r = v - U * g
     β = norm(r,2)
-    scale!(r,1/β)
+    rmul!(r,1/β)
     r, g, β
 end
 
@@ -26,7 +27,7 @@ function gs_step(U,::Type{Val{:MGS}},v)
         g[k] = ζ
     end
     β = norm(r,2)
-    scale!(r,1/β)
+    rmul!(r,1/β)
     r, g, β
 end
 
@@ -41,7 +42,7 @@ function gs_step(U,::Type{Val{:BMGS}},v)
         g[k] = ζ
     end
     β = norm(r,2)
-    scale!(r,1/β)
+    rmul!(r,1/β)
     r, g, β
 end
 
@@ -53,7 +54,7 @@ Algorithm from [^Barlow2005]
 
 [Barlow2005]: Barlow et al., BIT 45, 259 (2005)
 """
-function getorth{T}(U::AbstractMatrix{T},M1,M2)
+function getorth(U::AbstractMatrix{T},M1,M2) where T
     m,n = size(U)
     @assert m >= n
     e1 = zeros(T,m); e1[1] = 1
@@ -105,7 +106,7 @@ function getorth{T}(U::AbstractMatrix{T},M1,M2)
             # confusingly this is named $v_2$ in the paper,
             # but is NOT the same as the above v2.
             v2b = -U * f; v2b[1] += one(T)
-            scale!(v2,1/α)
+            rmul!(v2,1/α)
             w2,d2,γ3 = gs_step(Uhat,M1,v2b)
             d = d1 + α * d2
             branch += 1
@@ -140,7 +141,7 @@ Given a QR decomposition `X=Q*R`, computes `Qbar, Rbar` such that
 `Xbar = Qbar * Rbar` where `Xbar == X[2:end,:]`, overwriting
 the bottom of `Q` and `R`.
 """
-function qrdowndate!{T}(U::AbstractMatrix{T},R::AbstractMatrix{T})
+function qrdowndate!(U::AbstractMatrix{T},R::AbstractMatrix{T}) where T
     m,n = size(U)
     (m > n) || throw(ArgumentError("U must be tall"))
     # check size of R?
@@ -156,12 +157,12 @@ function qrdowndate!{T}(U::AbstractMatrix{T},R::AbstractMatrix{T})
     # Ubar = hcat(u0,U) * V
     for k=n:-1:1
         G,ρ = givens(ρ,r[k],1,2)
-        tmp = vcat(RowVector(u[k:n]),RowVector(R[k,k:n]))
-        A_mul_B!(G,tmp)
+        tmp = vcat(Transpose(u[k:n]),Transpose(R[k,k:n]))
+        lmul!(G,tmp)
         u[k:n] = tmp[1,:]
         R[k,k:n] = tmp[2,:]
         tmp2 = hcat(u0,U[:,k])
-        A_mul_Bc!(tmp2,G)
+        rmul!(tmp2,adjoint(G))
         u0 = tmp2[:,1]
         U[:,k] = tmp2[:,2]
     end

@@ -1,6 +1,7 @@
 using GeneralizedNullspaces
 using GenericSVD
-using Base.Test
+using Test
+using LinearAlgebra
 
 include("testutils.jl")
 

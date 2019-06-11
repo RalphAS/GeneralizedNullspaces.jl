@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT-Expat
 # License-Filename: LICENSE.md
 
+eye(A::Matrix{T}) where T = Matrix{eltype(A)}(I,size(A))
+
 function gnsdcheck(A,B,V,ν,μ,tol=1e-8; quiet=false)
     n = size(B,1)
     @assert size(A) == (n,n)
@@ -10,14 +12,14 @@ function gnsdcheck(A,B,V,ν,μ,tol=1e-8; quiet=false)
     @assert ν == length(μ)
 
     ok = true
-    t = vecnorm(A - V * B * V') / vecnorm(A)
+    t = norm(A - V * B * V') / norm(A)
     if t > tol
         ok = false
         warn("decomposition error: $t")
     elseif !quiet
         println("decomposition error: ",t)
     end
-    t = vecnorm(eye(V) - V' * V)
+    t = norm(eye(V) - V' * V)
     if t > 10n*eps()
         ok = false
         warn("unitarity error: $t")
@@ -31,7 +33,7 @@ function gnsdcheck(A,B,V,ν,μ,tol=1e-8; quiet=false)
     nb = length(bs)-1
 
     for j=1:ν
-        if vecnorm(B[bs[j]:n, bs[j]:bs[j+1]-1]) != 0
+        if norm(B[bs[j]:n, bs[j]:bs[j+1]-1]) != 0
             warn("subdiag block $j is not null")
             ok=false
         end
@@ -39,21 +41,21 @@ function gnsdcheck(A,B,V,ν,μ,tol=1e-8; quiet=false)
     for ib=1:nb
         Bii = B[bs[ib]:bs[ib+1]-1,bs[ib]:bs[ib+1]-1]
         if ib>ν
-            F = svdfact(Bii)
-            if any(F[:S].< tol)
+            F = svd!(Bii)
+            if any(F.S.< tol)
                 warn("diag block $ib (> ν) is singular")
                 ok=false
             end
         else
-            if vecnorm(Bii) != 0
+            if norm(Bii) != 0
                 warn("nonzero diag block $ib")
                 ok=false
             end
         end
         for jb=ib+1:nb
             Bij = B[bs[ib]:bs[ib+1]-1,bs[jb]:bs[jb+1]-1]
-            F = svdfact(Bij)
-            if any(F[:S].< tol)
+            F = svd!(Bij)
+            if any(F.S.< tol)
                 warn("block $ib,$jb does not have full column rank")
                 ok=false
             end
@@ -85,8 +87,8 @@ function makegnb(ν,μx; cplx=false)
         B = randn(n,n)
     end
     for i=1:ν
-        B[bs[i]:n, bs[i]:bs[i+1]-1] = 0
+        B[bs[i]:n, bs[i]:bs[i+1]-1] .= 0
     end
-    scale!(B,1/norm(B))
+    rmul!(B,1/norm(B))
     B
 end
