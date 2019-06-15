@@ -4,9 +4,13 @@
 
 [![codecov.io](http://codecov.io/github/RalphAS/GeneralizedNullspaces.jl/coverage.svg?branch=master)](http://codecov.io/github/RalphAS/GeneralizedNullspaces.jl?branch=master)
 
+A generalized nullspace decomposition (GNSD) of a matrix shows the structure
+of its (approximate) 0-eigenvalue Jordan blocks, and isolates the corresponding
+invariant subspaces.
+
 `GeneralizedNullspaces.jl` is a Julia implementation of the QR-updating
 method of Guglielmi *et al.* (2015) for computing the generalized null space
-decomposition (GNSD) of dense matrices.
+decomposition of dense matrices.
 
 The GNSD is `A = V * B * V'` where `V` is unitary and `B` has a block
 staircase structure. (See documentation for the `GNSD` type.) A vector

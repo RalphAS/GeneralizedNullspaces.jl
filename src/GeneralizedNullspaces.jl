@@ -1,5 +1,5 @@
 module GeneralizedNullspaces
-# copyright (c) 2017 Ralph Smith
+# copyright (c) 2017-2019 Ralph Smith
 # SPDX-License-Identifier: MIT-Expat
 # License-Filename: LICENSE.md
 
@@ -19,7 +19,7 @@ where `V` is a unitary matrix and `B` is block upper triangular.
 The diagonal blocks of `B` are square and null, with orders listed in
 a vector `μ`, except for a possible last block which
 will represent the range of `A^ν` if it is not empty, where `ν == length(μ)`.
-The order `μ[j]` is the number of zero-diagonal Jordan blocks of order `≤ j`
+The order `μ[j]` is the number of zero-diagonal Jordan blocks of order `≥ j`
 in the Jordan decomposition of a matrix close to `A`.
 The blocks on the first superdiagonal of `B` have full column rank.
 Columns of `V` span the corresponding subspaces of `A`.
@@ -181,9 +181,15 @@ function gnsdfact!(B::Matrix{T},tol=sqrt(eps(T))) where T
     GNSD(B,V,μ)
 end
 
-# Compute an approximate null vector for upper triangular matrix R.
-# For now, we allow R to be a view.
+"""
+    nullvector(R, tol=0) -> x, nRx
+
+Compute an approximate null vector `x` for upper triangular matrix `R`.
+Also returns the norm of `R * x`, which is a rough approximation to
+the smallest singular value of `R`.
+"""
 function nullvector(R::AbstractMatrix{T}, tol=zero(real(T))) where T
+    # For now, we allow R to be a view.
     all(x->isa(x, Base.OneTo), axes(R)) ||
         throw(ArgumentError("only implemented for 1-based indexing"))
     n = size(R,1)
@@ -258,19 +264,11 @@ function gnsd(A::Matrix{T},tol=sqrt(eps(T))) where T
     F.B, F.V, ν, F.μ
 end
 
-import Base.getindex
-
-function getindex(F::GNSD, d::Symbol)
-    if d == :B
-        return F.B
-    elseif d == :V
-        return F.V
-    elseif d == :μ
-        return F.μ
-    elseif d == :ν
+function Base.getproperty(F::GNSD, d::Symbol)
+    if d == :ν
         return length(F.μ)
     else
-        throw(KeyError(d))
+        return getfield(F, d)
     end
 end
 
