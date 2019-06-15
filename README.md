@@ -18,8 +18,8 @@ staircase structure. (See documentation for the `GNSD` type.) A vector
 vectors of `A`, the next `μ[2]` columns are null vectors of `A^2`,
 etc.
 
-The API is similar to the SVD methods in the standard library. `GNSD`, `gnsd`,
-`gnsdfact`, and `gnsdfact!` are exported.
+The API is similar to the SVD methods in the standard library. `GNSD`,
+`gnsd`, and `gnsd!` are exported.
 
 Note that computations of this sort are delicate; one is actually
 decomposing a particularly defective matrix close to `A`. The user is

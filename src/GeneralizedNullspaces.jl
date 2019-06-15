@@ -3,7 +3,7 @@ module GeneralizedNullspaces
 # SPDX-License-Identifier: MIT-Expat
 # License-Filename: LICENSE.md
 
-export gnsd, gnsdfact, gnsdfact!, GNSD
+export gnsd, gnsd!, GNSD
 
 using LinearAlgebra
 
@@ -14,7 +14,7 @@ using .QRDowndate
     GNSD <: Factorization
 
 A generalized nullspace decomposition of a matrix, typically obtained from
-[`gnsdfact`](@ref). If `A` is a square matrix, then the GNSD is `A == V*B*V'`
+[`gnsd`](@ref). If `A` is a square matrix, then the GNSD is `A == V*B*V'`
 where `V` is a unitary matrix and `B` is block upper triangular.
 The diagonal blocks of `B` are square and null, with orders listed in
 a vector `μ`, except for a possible last block which
@@ -41,7 +41,7 @@ end
 const useviews = Ref{Bool}(true)
 
 """
-    gnsdfact(A) -> F::GNSD
+    gnsd(A) -> F::GNSD
 
 Compute the generalized nullspace decomposition of a matrix `A`.
 
@@ -49,21 +49,25 @@ Returns a [`GNSD`](@ref) object.
 `B` and `V` can be obtained from the factorization `F` with `F[:B]` and
 `F[:V]`, such that `A = V * B * V'`.
 
+Iterating the decomposition produces the tuple `(B, V, ν, μ)`
+where 'ν` is the index of `A` and `μ` holds the diagonal block orders.
+See [`GNSD`](@ref) for the structure of `B`.
+
 Uses the QR/update algorithm from [^Guglielmi2015].
 
 [^Guglielmi2015]: N.Guglielmi, M.Overton, & G.Stewart,
 "An efficient algorithm for computing the generalized null space decomposition",
 SIAM J. Matrix Anal. Appl. 36 (1), 38-54 (2015).
 """
-gnsdfact(A::Matrix{T},tol=sqrt(eps(T))) where T = gnsdfact!(copy(A),tol)
+gnsd(A::Matrix{T},tol=sqrt(eps(T))) where T = gnsd!(copy(A),tol)
 
 """
-    gnsdfact!(A) -> F::GNSD
+    gnsd!(A) -> F::GNSD
 
-`gnsdfact!` is the same as [`gnsdfact`](@ref), but saves space by
+`gnsd!` is the same as [`gnsd`](@ref), but saves space by
 overwriting the input `A` instead of creating a copy.
 """
-function gnsdfact!(B::Matrix{T},tol=sqrt(eps(T))) where T
+function gnsd!(B::Matrix{T},tol=sqrt(eps(T))) where T
     verbosity = pverbosity[]
     m,n = size(B)
     F = qr(B)
@@ -91,7 +95,7 @@ function gnsdfact!(B::Matrix{T},tol=sqrt(eps(T))) where T
             (verbosity > 0) && println("row j=$j rxnorm: $rxnorm")
             (rxnorm > tol) && break
             if j>1
-                x = vcat(zeros(j-1),x)
+                x = vcat(zeros(T,j-1),x)
             end
 
             # Transposition is reversed w.r.t. paper because
@@ -249,20 +253,12 @@ function nullvector(R::AbstractMatrix{T}, tol=zero(real(T))) where T
     x,rxnorm
 end
 
-"""
-    gnsd(A) -> B, V, ν, μ
-
-compute the generalized nullspace decomposition of a matrix `A`
-
-Computes block upper triangular `B` and unitary `V` s.t. `A = V * B * V'`.
-Returns the index of `A` in `ν` and the diagonal block orders in `μ`.
-See [`GNSD`](@ref) for the structure of `B`.
-"""
-function gnsd(A::Matrix{T},tol=sqrt(eps(T))) where T
-    F = gnsdfact(A,tol)
-    ν = length(F.μ)
-    F.B, F.V, ν, F.μ
-end
+# iteration for destructuring into components
+Base.iterate(S::GNSD) = (S.B, Val(:V))
+Base.iterate(S::GNSD, ::Val{:V}) = (S.V, Val(:ν))
+Base.iterate(S::GNSD, ::Val{:ν}) = (S.ν, Val(:μ))
+Base.iterate(S::GNSD, ::Val{:μ}) = (S.μ, Val(:done))
+Base.iterate(S::GNSD, ::Val{:done}) = nothing
 
 function Base.getproperty(F::GNSD, d::Symbol)
     if d == :ν

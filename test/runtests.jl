@@ -1,7 +1,10 @@
 using GeneralizedNullspaces
 using GenericSVD
 using Test
+using Random
 using LinearAlgebra
+
+Random.seed!(1234)
 
 include("testutils.jl")
 
@@ -31,6 +34,14 @@ let tol=1e-10
          9/64 39/128 3/64   39/128 3/128 1/128 0     1/128 3/128 9/64]
 
     B, V, ν, μ = gnsd(A,tol)
+
+    # check destructuring
+    F = gnsd(A,tol)
+    @test F isa GNSD{Float64}
+    @test F.B == B
+    @test F.V == V
+    @test F.ν == ν
+    @test F.μ == μ
 
     @test ν == 2
     @test μ == [3,1]
@@ -94,16 +105,15 @@ let tol=1e-9
     @test gnsdcheck(A,B,V,ν1,μ; quiet=quiet)
 end
 
-let tol=1e-9
+let tol=1e-29
     ν=1
     μx = [3,2]
-    AA = makegnb(1,μx)
+    AA = BigFloat.(makegnb(1,μx))
     n = size(AA,1)
-    Q,R = qr(randn(n,n))
-    A = Q' * AA * Q
-    Ab = Matrix{BigFloat}(A)
+    Q,R = qr(BigFloat.(randn(n,n)))
+    Ab = Q' * AA * Q
     B,V,ν1,μ = gnsd(Ab,tol)
     @test ν == 1
     @test μ == μx[1:ν]
-    @test gnsdcheck(A,B,V,ν,μ)
+    @test gnsdcheck(Ab,B,V,ν,μ)
 end
