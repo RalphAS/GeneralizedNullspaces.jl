@@ -1,5 +1,5 @@
 using GeneralizedNullspaces
-using GenericSVD
+using GenericLinearAlgebra
 using Test
 using Random
 using LinearAlgebra

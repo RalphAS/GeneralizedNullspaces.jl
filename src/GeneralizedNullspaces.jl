@@ -50,7 +50,7 @@ Returns a [`GNSD`](@ref) object.
 `F[:V]`, such that `A = V * B * V'`.
 
 Iterating the decomposition produces the tuple `(B, V, ν, μ)`
-where 'ν` is the index of `A` and `μ` holds the diagonal block orders.
+where `ν` is the index of `A` and `μ` holds the diagonal block orders.
 See [`GNSD`](@ref) for the structure of `B`.
 
 Uses the QR/update algorithm from [^Guglielmi2015].
